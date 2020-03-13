@@ -1,0 +1,56 @@
+'''Python program to download CSV file using SFTP from remote server
+and upload to database after parsing in given format'''
+
+#Download the CSV files from remote server
+
+import pysftp
+
+with pysftp.Connection(host='X.X.X.X', username='myUsername', password='myPassword') as sftp:
+    print ("Connection succesfully stablished ... ")
+
+    # Define the file that you want to download from the remote directory
+    remoteFilePath = '/test/test-test/test'
+
+    # Define the local path where the file will be saved
+    localFilePath = './CSV_Downloads'
+    # recursively copies files and directories from the remote to a local path.
+    #pysftp get_r does not work on Windows. It uses os.sep and os.path functions for remote SFTP paths,
+    #SFTP paths always use a forward slash
+
+    sftp.get_r(remoteFilePath, localFilePath)
+
+
+#Create a Database with required column names
+
+import mysql.connector as mycon
+
+mydb = mycon.connect(host="abcd",user='root',password='123456789',database='AssignmentTable')
+
+myCursor = mydb.cursor()
+
+myCursor.execute("CREATE TABLE parsed_CSV (Result_Time VARCHAR(255), Granularity_Period INTEGER(10),Object_Name VARCHAR(255), Cell_ID INTEGER(10),CallAttemps INTEGER(10))")
+
+#'''Creating a formula to update the columns with  different data sets'''
+
+sqlFormula = "INSERT INTO parsed_CSV (Result_Time, Granularity_Period, Object_Name, Cell_ID, CallAttemps) VALUES (%s,%s,%s,%s,%s)"
+
+
+
+# Parsing the CSV Data
+#The glob module finds all the pathnames matching a specified pattern according to the rules used by the Unix shell
+
+import glob
+import csv
+
+path = r'./CSV_Downloads' # path of local folder
+all_files = glob.glob(path + "/*.csv")
+
+
+#recursivly updating created database with each CSV file
+for filename in all_files:
+    with open(filename, 'r') as file:
+        reader = csv.reader(file)
+        for row in reader:
+            fileData = (row[0],row[1],row[2],row[3],row[4])
+            myCursor.execute(sqlFormula, fileData)
+            mydb.commit()
